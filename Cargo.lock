@@ -110,7 +110,13 @@ dependencies = [
 name = "arceos-helloworld"
 version = "0.1.0"
 dependencies = [
+ "axhal",
+ "axplat-riscv64-sg2002",
  "axstd",
+ "dw_apb_uart",
+ "sg200x-bsp",
+ "synopsys-dw-uart",
+ "tock-registers 0.9.0",
 ]
 
 [[package]]
@@ -207,7 +213,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234fbc75ee659ae0fa44cdbe9a61f84cc4a107b024efd872e7ad56ad82f9ab08"
 dependencies = [
  "aarch64-cpu 10.0.0",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "enum_dispatch",
  "log",
  "paste",
@@ -489,7 +495,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcba2006898d7879d456a9c34b9c9460cb536f5bf69d1d5d7d0e0f19f073368d"
 dependencies = [
  "axerrno",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "log",
 ]
 
@@ -611,7 +617,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "397e19d768dbf9573cf40663d65671a98c8b8a2a3b3947191d4aab6a33e01a15"
 dependencies = [
  "axplat-macros",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "const-str",
  "crate_interface",
  "handler_table",
@@ -743,6 +749,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "axplat-riscv64-sg2002"
+version = "0.2.0"
+dependencies = [
+ "axconfig-macros",
+ "axcpu",
+ "axplat",
+ "dw_apb_uart",
+ "log",
+ "riscv",
+ "sbi-rt",
+]
+
+[[package]]
 name = "axplat-x86-pc"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -751,7 +770,7 @@ dependencies = [
  "axconfig-macros",
  "axcpu",
  "axplat",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "heapless 0.9.1",
  "int_ratio",
  "kspin",
@@ -865,7 +884,7 @@ version = "0.72.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f72209734318d0b619a5e0f5129918b848c416e122a3c4ce054e03cb87b726f"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "cexpr",
  "clang-sys",
  "itertools",
@@ -886,6 +905,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b645c5c09a7d4035949cfce1a915785aaad6f17800c35fda8a8c311c491f284"
 
 [[package]]
+name = "bit-struct"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "270fbbb014407467f7a2c9b1fa0b74057d5cbc452f18bac3bb5aad601e590521"
+dependencies = [
+ "num-traits",
+ "serde",
+]
+
+[[package]]
 name = "bit_field"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,9 +928,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.9.2"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a65b545ab31d687cff52899d4890855fec459eb6afe0da6417b8a18da87aa29"
+checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
 
 [[package]]
 name = "bitmap-allocator"
@@ -942,7 +971,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9b24894fa5f73bbf9c72196e7f495a1f81d6218a548280a09ada4a937157692"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
 ]
 
 [[package]]
@@ -1154,8 +1183,6 @@ dependencies = [
 [[package]]
 name = "dw_apb_uart"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f93d496c8faa9dc676ebfa225432e1e3b57645c9268ead889286546f6d39356d"
 dependencies = [
  "tock-registers 0.8.1",
 ]
@@ -1171,6 +1198,12 @@ name = "embedded-hal"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
+name = "embedded-io"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9eb1aa714776b75c7e67e1da744b81a129b3ff919c8712b5e1b32252c1f07cc7"
 
 [[package]]
 name = "enum_dispatch"
@@ -1195,7 +1228,7 @@ name = "fatfs"
 version = "0.4.0"
 source = "git+https://github.com/rafalh/rust-fatfs?rev=4eccb50#4eccb50d011146fbed20e133d33b22f3c27292e7"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "log",
 ]
 
@@ -1482,7 +1515,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c9f0d275c70310e2a9d2fc23250c5ac826a73fa828a5f256401f85c5c554283"
 dependencies = [
  "bit_field",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
 ]
 
 [[package]]
@@ -1571,7 +1604,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba811ef8ca8fb33d776e128624cb4fe25c9804cab96f83b822d4322431e6dd5a"
 dependencies = [
  "aarch64-cpu 10.0.0",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "memory_addr",
  "x86_64",
 ]
@@ -1626,7 +1659,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
- "zerocopy 0.8.26",
+ "zerocopy 0.8.42",
 ]
 
 [[package]]
@@ -1729,7 +1762,7 @@ version = "11.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6df7ab838ed27997ba19a4664507e6f82b41fe6e20be42929332156e5e85146"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
 ]
 
 [[package]]
@@ -1831,6 +1864,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
+name = "safe-mmio"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0a69f884a1511aa811aa94e04559414a66b18ca63f50f84ca31e304f38bad0d"
+dependencies = [
+ "zerocopy 0.8.42",
+]
+
+[[package]]
 name = "sbi-rt"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1856,6 +1898,45 @@ name = "semver"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+
+[[package]]
+name = "serde"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
+dependencies = [
+ "serde_core",
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_core"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
+name = "sg200x-bsp"
+version = "0.3.0"
+dependencies = [
+ "bit-struct",
+ "log",
+ "tock-registers 0.9.0",
+]
 
 [[package]]
 name = "shlex"
@@ -1971,19 +2052,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "thiserror"
-version = "2.0.16"
+name = "synopsys-dw-uart"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3467d614147380f2e4e374161426ff399c91084acd2363eaf549172b3d5e60c0"
+checksum = "baf61bd6aec4bdefeca9a705f01fb90c3d59ff6e2747f05a2a681c29dfbc608d"
+dependencies = [
+ "bitflags 2.11.0",
+ "embedded-io",
+ "safe-mmio",
+ "thiserror",
+ "zerocopy 0.8.42",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.16"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c5e1be1c48b9172ee610da68fd9cd2770e7a4056cb3fc98710ee6906f0c7960"
+checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2038,7 +2132,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94d293f51425981fdb1b766beae254dbb711a17e8c4b549dc69b9b7ee0d478d5"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "rustversion",
  "x86",
 ]
@@ -2067,7 +2161,7 @@ version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa40e09453618c7a927c08c5a990497a2954da7c2aaa6c65e0d4f0fc975f6114"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "log",
  "zerocopy 0.7.35",
 ]
@@ -2305,7 +2399,7 @@ version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
 ]
 
 [[package]]
@@ -2339,7 +2433,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f042214de98141e9c8706e8192b73f56494087cc55ebec28ce10f26c5c364ae"
 dependencies = [
  "bit_field",
- "bitflags 2.9.2",
+ "bitflags 2.11.0",
  "rustversion",
  "volatile 0.4.6",
 ]
@@ -2366,11 +2460,11 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.26"
+version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1039dd0d3c310cf05de012d8a39ff557cb0d23087fd44cad61df08fc31907a2f"
+checksum = "f2578b716f8a7a858b7f02d5bd870c14bf4ddbbcf3a4c05414ba6503640505e3"
 dependencies = [
- "zerocopy-derive 0.8.26",
+ "zerocopy-derive 0.8.42",
 ]
 
 [[package]]
@@ -2386,9 +2480,9 @@ dependencies = [
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.26"
+version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ecf5b4cc5364572d7f4c329661bcc82724222973f2cab6f050a4e5c22f75181"
+checksum = "7e6cc098ea4d3bd6246687de65af3f920c430e236bee1e3bf2e441463f08a02f"
 dependencies = [
  "proc-macro2",
  "quote",

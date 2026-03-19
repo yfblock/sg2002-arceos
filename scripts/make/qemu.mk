@@ -31,6 +31,7 @@ qemu_args-x86_64 := \
   -kernel $(OUT_ELF)
 
 qemu_args-riscv64 := \
+  -cpu thead-c906 \
   -machine $(machine) \
   -bios default \
   -kernel $(FINAL_IMG)

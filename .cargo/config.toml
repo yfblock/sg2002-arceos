@@ -1,0 +1,16 @@
+[target.riscv64gc-unknown-none-elf]
+# 核心配置：明确指定 CPU 和 禁用的特性
+rustflags = [
+    # 1. 指定目标 CPU 为 c906 (LLVM 17+ 支持)
+    # "-C", "target-cpu=c906",
+    "-C", "target-cpu=generic-rv64",
+
+    # 2. 显式禁用 zcb 扩展 (关键！防止生成 c.lbu)
+    # 尽管 target-cpu=c906 理论上不含 zcb，但显式禁用最保险
+    "-C", "target-feature=-zcb", 
+
+    # 3. 启用 C906 支持的标准特性 (根据需要)
+    # +c: 开启标准压缩指令 (支持 c.lw, c.sw 等)
+    # +v: 开启向量扩展 (注意 C906 是旧版 0.7.1 rvv，需确认编译器支持情况)
+    "-C", "target-feature=+c",
+]

@@ -1,0 +1,25 @@
+[package]
+name = "axplat-riscv64-sg2002"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+irq = ["axplat/irq"]
+smp = ["axplat/smp"]
+rtc = []
+
+[dependencies]
+axconfig-macros = "0.2"
+axplat = "0.3"
+axcpu = "0.2"
+log = "0.4"
+sbi-rt = { version = "0.0.3", features = ["legacy"] }
+riscv = "0.14"
+dw_apb_uart = "0.1.0"

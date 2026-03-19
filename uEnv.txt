@@ -1,0 +1,2 @@
+# sdboot=loady;go 0x80080000
+sdboot=load mmc 0:1 0x80080000 helloworld_sg2002.bin; go 0x80080000

@@ -30,6 +30,7 @@ members = [
     "examples/httpclient",
     "examples/httpserver",
     "examples/shell",
+    "axplat-riscv64-sg2002",
 ]
 
 [workspace.package]
@@ -66,6 +67,9 @@ axsync = { path = "modules/axsync" }
 axtask = { path = "modules/axtask" }
 axdma = { path = "modules/axdma" }
 axipi = { path = "modules/axipi" }
+
+[patch.crates-io]
+dw_apb_uart = { path = "dw_apb_uart" }
 
 [profile.release]
 lto = true
