@@ -26,10 +26,10 @@ members = [
     "ulib/axlibc",
 
     "examples/helloworld",
-    "examples/helloworld-myplat",
-    "examples/httpclient",
-    "examples/httpserver",
-    "examples/shell",
+    # "examples/helloworld-myplat",
+    # "examples/httpclient",
+    # "examples/httpserver",
+    # "examples/shell",
     "axplat-riscv64-sg2002",
 ]
 

@@ -1,3 +1,6 @@
+[build]
+target = "riscv64gc-unknown-none-elf"
+
 [target.riscv64gc-unknown-none-elf]
 # 核心配置：明确指定 CPU 和 禁用的特性
 rustflags = [

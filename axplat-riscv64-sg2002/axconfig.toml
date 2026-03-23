@@ -47,8 +47,22 @@ pci-ecam-base = 0           # uint
 pci-bus-end = 0             # uint
 # PCI device memory ranges.
 pci-ranges = []             # [(uint, uint)]
+# plic0: interrupt-controller@70000000 {
+#     riscv,ndev = <101>;
+#     riscv,max-priority = <0x07>;
+#     reg-names = "control";
+#     reg = <0x00 0x70000000 0x00 0x4000000>;
+#     interrupts-extended = <&cpu0_intc 0xffffffff &cpu0_intc 0x09>;
+#     interrupt-controller;
+#     compatible = "riscv,plic0";
+#     #interrupt-cells = <0x02>;
+#     #address-cells = <0x00>;
+# };
+plic-paddr = 0x7000_0000            # uint
 # Timer interrupt frequency in Hz.
 # timer-frequency = 10_000_000        # uint
 timer-frequency = 25_000_000        # uint
+# Timer interrupt num.
+timer-irq = "0x8000_0000_0000_0005" # uint
 # Uart Physical Address
 uart-paddr = 0x04140000     # uint

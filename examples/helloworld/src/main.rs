@@ -1,5 +1,5 @@
-#![cfg_attr(feature = "axstd", no_std)]
-#![cfg_attr(feature = "axstd", no_main)]
+#![no_std]
+#![no_main]
 
 extern crate axplat_riscv64_sg2002;
 
@@ -20,28 +20,19 @@ use crate::arm::release;
 use crate::camera::UartTransport;
 use crate::utils::hexdump;
 use core::time::Duration;
+use core::iter::Iterator;
 
 use arm::grab;
 use axhal::asm::wait_for_irqs;
 use axhal::mem::PhysAddr;
+use axhal::mem::phys_to_virt;
 use axhal::time::wall_time;
 use axstd::os::arceos::modules::axhal::mem::pa;
-use axstd::os::arceos::modules::axhal::mem::phys_to_virt;
-use axstd::os::arceos::modules::axhal::mem::va;
-use axstd::os::arceos::modules::axhal::mem::virt_to_phys;
-use axstd::os::arceos::modules::axlog::debug;
-use axstd::vec::Vec;
-#[cfg(feature = "axstd")]
-use axstd::{print, println};
-use sg200x_bsp::i2c::I2cInstance;
-use sg200x_bsp::i2c::I2cSpeed;
+use axstd::println;
 use sg200x_bsp::pinmux::FMUX_IIC0_SCL;
 use sg200x_bsp::pinmux::FMUX_IIC0_SDA;
 use sg200x_bsp::pinmux::FMUX_JTAG_CPU_TCK;
 use sg200x_bsp::pinmux::FMUX_JTAG_CPU_TMS;
-use sg200x_bsp::pinmux::FMUX_SD1_CLK;
-use sg200x_bsp::pinmux::FMUX_SD1_CMD;
-use sg200x_bsp::pinmux::FMUX_SD1_D0;
 use sg200x_bsp::pinmux::FMUX_SD1_D1;
 use sg200x_bsp::pinmux::FMUX_SD1_D2;
 use sg200x_bsp::pinmux::FMUX_UART0_RX;
@@ -50,11 +41,6 @@ use sg200x_bsp::pinmux::Pinmux;
 use sg200x_bsp::pwm::PwmInstance;
 use sg200x_bsp::pwm::PwmChannel;
 use sg200x_bsp::pwm::PwmMode;
-use sg200x_bsp::{
-    gpio::{Direction, GPIOPort},
-    sdmmc,
-};
-use synopsys_dw_uart::SynopsysUart;
 use tock_registers::interfaces::Writeable;
 
 const UART3_ADDR: PhysAddr = PhysAddr::from_usize(0x04170000);
@@ -108,20 +94,39 @@ impl UartTransport for Uart3 {
     }
 }
 
-#[cfg_attr(feature = "axstd", unsafe(no_mangle))]
+#[unsafe(no_mangle)]
 fn main() {
     println!("Hello, world!");
     let pinmux = Pinmux::new();
     // wifi::init();
 
+    pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
+    pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
+
+    let dmac = phys_to_virt(pa!(0x03002000));
     unsafe {
-        pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
-        pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
+        dmac.as_mut_ptr().write_volatile(dmac.as_ptr().read_volatile() | 0x1);
     }
+    let mut uart0 = dw_apb_uart::DW8250::new(phys_to_virt(pa!(0x04140000)).as_usize());
+    uart0.set_ier(true);
+    // axhal::irq::register(44, || println!("hello"));
+    // axhal::irq::set_enable(44, true);
+    // axhal::irq::set_enable(45, true);
+    // axhal::irq::set_enable(45, true);
+    axhal::irq::set_enable(47, true);
 
     let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
     // uart3.init_with_baud(2500000);
-    uart3.init_with_baud(1500000);
+    uart3.init();
+    uart3.set_ier(true);
+
+    loop {
+        unsafe {
+            // core::arch::asm!("wfi; nop;");
+            core::arch::asm!("nop");
+        }
+    }
+    // uart3.init_with_baud(1500000);
     // uart3.init();
     println!("get cpr: {:#x}", uart3.cpr());
     println!("UART3 initialized");
@@ -134,36 +139,26 @@ fn main() {
     let frame = cam.get_frame().unwrap();
 
     println!("get Camera len: {:#x}", frame.len());
-    while true {
+    loop {
         core::hint::spin_loop();
-        unsafe {
-            wait_for_irqs();
-        }
+        wait_for_irqs();
     }
 
     // gc4653::init();
-    unsafe {
-        // Set Uart 2 PINMUX
-        // phys_to_virt(pa!(0x03001070)).as_mut_ptr().write_volatile(0x2);
-        // phys_to_virt(pa!(0x03001074)).as_mut_ptr().write_volatile(0x2);
-        pinmux.fmux().iic0_sda.write(FMUX_IIC0_SDA::FSEL::UART2_RX);
-        pinmux.fmux().iic0_scl.write(FMUX_IIC0_SCL::FSEL::UART2_TX);
+    // Set Uart 2 PINMUX
+    pinmux.fmux().iic0_sda.write(FMUX_IIC0_SDA::FSEL::UART2_RX);
+    pinmux.fmux().iic0_scl.write(FMUX_IIC0_SCL::FSEL::UART2_TX);
 
 
-        // Set PWM PinMUX
-        pinmux.fmux().jtag_cpu_tms.write(FMUX_JTAG_CPU_TMS::FSEL::PWM_7);
-        pinmux.fmux().jtag_cpu_tck.write(FMUX_JTAG_CPU_TCK::FSEL::PWM_6);
-        // pinmux.fmux().sd1_cmd.write(FMUX_SD1_CMD::FSEL::PWM_8);
-        // pinmux.fmux().sd1_clk.write(FMUX_SD1_CLK::FSEL::PWM_9);
-        pinmux.fmux().uart0_tx.write(FMUX_UART0_TX::FSEL::PWM_4);
-        pinmux.fmux().uart0_rx.write(FMUX_UART0_RX::FSEL::PWM_5);
+    // Set PWM PinMUX
+    pinmux.fmux().jtag_cpu_tms.write(FMUX_JTAG_CPU_TMS::FSEL::PWM_7);
+    pinmux.fmux().jtag_cpu_tck.write(FMUX_JTAG_CPU_TCK::FSEL::PWM_6);
+    pinmux.fmux().uart0_tx.write(FMUX_UART0_TX::FSEL::PWM_4);
+    pinmux.fmux().uart0_rx.write(FMUX_UART0_RX::FSEL::PWM_5);
 
-        // Set Uart 3 PINMUX
-        // phys_to_virt(pa!(0x030010D4)).as_mut_ptr().write_volatile(0x5);
-        // phys_to_virt(pa!(0x030010D8)).as_mut_ptr().write_volatile(0x5);
-        pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
-        pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
-    }
+    // Set Uart 3 PINMUX
+    pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
+    pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
 
     arm_init();
 
@@ -185,7 +180,7 @@ fn main() {
             10000,
             7000,
             sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
-        );
+        ).unwrap();
         //
         pwm_chip1.set_mode(channel, PwmMode::Continuous);
         // 使能 IO 输出
@@ -249,7 +244,7 @@ fn main() {
     grab();
     crate::arm::delay_ms(5000);
     release();
-    while true {
+    loop {
         core::hint::spin_loop();
         wait_for_irqs();
     }
@@ -257,7 +252,7 @@ fn main() {
     let sdmmc = sg200x_bsp::sdmmc::init().unwrap();
     let mut buffer = [0; 512 * 6];
     sdmmc.clk_en(true);
-    sdmmc.read_block(0, &mut buffer);
+    sdmmc.read_block(0, &mut buffer).unwrap();
     // pwm7.configure_channel_raw(
     //     sg200x_bsp::pwm::PwmChannel::Channel3,
     //     1000,

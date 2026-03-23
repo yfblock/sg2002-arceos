@@ -88,24 +88,3 @@ impl Sts3215 {
         self.write_reg(servo_id, 0x2E, &data);
     }
 }
-
-// --- 外部实现的 puts 示例 ---
-
-// 这是一个符合 fn(&[u8]) 签名的普通函数
-fn my_uart_puts(data: &[u8]) {
-    println!("bytes: {:#x?}", data);
-    let mut uart1 = dw_apb_uart::DW8250::new(0x04150000);
-    for c in data {
-        uart1.putchar(*c);
-    }
-}
-
-fn test() {
-    // pinmux.set_uart1();
-    // let mut uart1 = dw_apb_uart::DW8250::new(0x04150000);
-    // uart1.init();
-    // let sts = Sts3215::new(my_uart_puts);
-    // sts.set_speed(1, 1500);
-    // // sts.move_angle(1, 360);
-    // sts.move_to_position(1, 1800);
-}

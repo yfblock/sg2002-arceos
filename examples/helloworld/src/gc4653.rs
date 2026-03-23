@@ -1,11 +1,9 @@
 use axstd::ptr;
-use axstd::sync::Mutex;
-use sg200x_bsp::gpio::{Direction, GPIO, GPIOPin, GPIOPort};
+use sg200x_bsp::gpio::{Direction, GPIOPin, GPIOPort};
 use sg200x_bsp::i2c::{I2c, I2cInstance};
-use sg200x_bsp::mipirx::regs::csi0_regs;
 use sg200x_bsp::mipirx::{HdrMode, LaneMode, MipiRxDevAttr, RawDataType, SensorMode};
 use sg200x_bsp::mipirx::{MipiRx, MipiRxCsi};
-use sg200x_bsp::pinmux::{self, Pinmux};
+use sg200x_bsp::pinmux::Pinmux;
 use tock_registers::interfaces::Readable;
 
 const SNSR_I2C_ADDR: u8 = 0x29;
@@ -14,14 +12,14 @@ const GC4653_CHIP_ID_ADDR_L: u16 = 0x03f1;
 
 // pub static I2C4: LazyLock<Mutex<I2c>> = LazyLock::new(|| Mutex::new(I2c::new(I2cInstance::I2c4)));
 
-struct Clock {
-    sync_set: u32,
-    pre_div_sel: u32,
-    post_div_sel: u32,
-    sel_mode: u32,
-    div_sel: u32,
-    ictrl: u32,
-}
+// struct Clock {
+//     sync_set: u32,
+//     pre_div_sel: u32,
+//     post_div_sel: u32,
+//     sel_mode: u32,
+//     div_sel: u32,
+//     ictrl: u32,
+// }
 
 // const clk: Clock = Clock {
 //     sync_set: todo!(),
@@ -53,7 +51,6 @@ pub fn init() {
 
     // CAMPLL_FREQ_24M
     let clk_div = 33;
-    let sync_set = 0;
     // 使用 unsafe 块包裹所有硬件操作
     unsafe {
         // 1. 设置 0x03002800 的第 16 位
@@ -106,7 +103,6 @@ pub fn init() {
 
     let ref mut buf = [0u8; 2];
     let mut i2c = I2c::new(I2cInstance::I2c4);
-    let mut sensor_id: u16 = 0;
     i2c.init(sg200x_bsp::i2c::I2cSpeed::Fast);
     i2c.read(SNSR_I2C_ADDR, &mut buf[..1]).unwrap();
     println!("{:#x?}", GC4653_CHIP_ID_ADDR_H.to_be_bytes());
@@ -124,10 +120,11 @@ pub fn init() {
     )
     .unwrap();
     let sensor_id: u16 = u16::from_be_bytes(buf[..2].try_into().unwrap());
+    println!("session id: {}", sensor_id);
     linear_1440p30_init();
     write_default_regs();
     let mut mipirx = unsafe { MipiRx::new() };
-    mipirx.reset(0);
+    mipirx.reset(0).unwrap();
     // 配置设备属性
     let attr = MipiRxDevAttr {
         devno: 0,
@@ -145,7 +142,7 @@ pub fn init() {
     mipirx.configure(&attr).unwrap();
 
     // 使能接收
-    mipirx.enable(0);
+    mipirx.enable(0).unwrap();
 
     // MAC TOP:
     let mipirxcsi = MipiRxCsi::new(0).unwrap();
@@ -173,8 +170,8 @@ pub fn gc4653_write_register(reg_addr: u16, val: u8) {
     let mut buf = [0u8; 3];
     buf[..2].copy_from_slice(&reg_addr.to_be_bytes());
     buf[2] = val;
-    let mut i2c = I2c::new(I2cInstance::I2c4);
-    i2c.write(SNSR_I2C_ADDR, &buf);
+    let i2c = I2c::new(I2cInstance::I2c4);
+    i2c.write(SNSR_I2C_ADDR, &buf).unwrap();
 }
 
 pub fn write_default_regs() {
@@ -358,21 +355,29 @@ pub fn restart() {
 
 // 辅助函数：封装 unsafe 操作
 unsafe fn mmio_set_bit(addr: *mut u32, bit: u8) {
-    let val = ptr::read_volatile(addr);
-    ptr::write_volatile(addr, val | (1 << bit));
+    unsafe {
+        let val = ptr::read_volatile(addr);
+        ptr::write_volatile(addr, val | (1 << bit));
+    }
 }
 
 unsafe fn mmio_clear_bit(addr: *mut u32, bit: u8) {
-    let val = ptr::read_volatile(addr);
-    ptr::write_volatile(addr, val & !(1 << bit));
+    unsafe {
+        let val = ptr::read_volatile(addr);
+        ptr::write_volatile(addr, val & !(1 << bit));
+    }
 }
 
 unsafe fn mmio_write(addr: *mut u32, val: u32) {
-    ptr::write_volatile(addr, val);
+    unsafe {
+        ptr::write_volatile(addr, val);
+    }
 }
 
 unsafe fn mmio_toggle_bit(addr: *mut u32, bit: u8) {
-    let mut val = ptr::read_volatile(addr);
-    val = val ^ (1 << bit);
-    mmio_write(addr, val);
+    unsafe {
+        let mut val = ptr::read_volatile(addr);
+        val = val ^ (1 << bit);
+        mmio_write(addr, val);
+    }
 }

@@ -11,7 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-irq = ["axplat/irq"]
+irq = ["axplat/irq", "dep:riscv_plic"]
 smp = ["axplat/smp"]
 rtc = []
 
@@ -23,3 +23,5 @@ log = "0.4"
 sbi-rt = { version = "0.0.3", features = ["legacy"] }
 riscv = "0.14"
 dw_apb_uart = "0.1.0"
+riscv_plic = { version = "0.2", optional = true }
+kspin = "0.1"

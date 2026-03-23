@@ -1,4 +1,5 @@
 use axstd::{print, println};
+use core::iter::Iterator;
 use sg200x_bsp::gpio::{Direction, GPIOPin, GPIOPort, GPIO};
 
 pub fn hexdump(data: &[u8], mut start_addr: usize) {
