@@ -7,43 +7,46 @@ extern crate axplat_riscv64_sg2002;
 extern crate axstd;
 
 pub mod arm;
-pub mod gc4653;
+pub mod camera;
+// pub mod gc4653;
+pub mod pwm_demo;
 pub mod ssd1306;
 pub mod sts3215;
 pub mod utils;
-pub mod camera;
-pub mod pwm_demo; 
+mod dma_uart_tx;
+mod usb_host;
 // pub mod wifi;
 
 use crate::arm::arm_init;
 use crate::arm::release;
 use crate::camera::UartTransport;
 use crate::utils::hexdump;
-use core::time::Duration;
 use core::iter::Iterator;
+use core::time::Duration;
 
 use arm::grab;
-use axhal::asm::wait_for_irqs;
-use axhal::mem::PhysAddr;
-use axhal::mem::phys_to_virt;
-use axhal::time::wall_time;
+use axhal::{
+    asm::wait_for_irqs,
+    mem::{PhysAddr, phys_to_virt},
+};
+use axstd::collections::vec_deque::VecDeque;
 use axstd::os::arceos::modules::axhal::mem::pa;
 use axstd::println;
-use sg200x_bsp::pinmux::FMUX_IIC0_SCL;
-use sg200x_bsp::pinmux::FMUX_IIC0_SDA;
-use sg200x_bsp::pinmux::FMUX_JTAG_CPU_TCK;
-use sg200x_bsp::pinmux::FMUX_JTAG_CPU_TMS;
-use sg200x_bsp::pinmux::FMUX_SD1_D1;
-use sg200x_bsp::pinmux::FMUX_SD1_D2;
-use sg200x_bsp::pinmux::FMUX_UART0_RX;
-use sg200x_bsp::pinmux::FMUX_UART0_TX;
-use sg200x_bsp::pinmux::Pinmux;
-use sg200x_bsp::pwm::PwmInstance;
-use sg200x_bsp::pwm::PwmChannel;
-use sg200x_bsp::pwm::PwmMode;
+use axstd::sync::Mutex;
+use axstd::thread::sleep;
+use sg200x_bsp::{
+    pinmux::{
+        FMUX_IIC0_SCL, FMUX_IIC0_SDA, FMUX_JTAG_CPU_TCK, FMUX_JTAG_CPU_TMS, FMUX_SD1_D1,
+        FMUX_SD1_D2, FMUX_UART0_RX, FMUX_UART0_TX, Pinmux,
+    },
+    pwm::{PwmChannel, PwmInstance, PwmMode},
+};
 use tock_registers::interfaces::Writeable;
 
+static CAMERA_UART_BUF: Mutex<VecDeque<u8>> = Mutex::new(VecDeque::new());
 const UART3_ADDR: PhysAddr = PhysAddr::from_usize(0x04170000);
+const SLIP_END: u8 = 0xC0;
+
 struct Uart3;
 
 impl UartTransport for Uart3 {
@@ -53,81 +56,63 @@ impl UartTransport for Uart3 {
         Ok(())
     }
 
-    fn read_bytes(&mut self, buf: &mut [u8], timeout_ms: u64) -> Result<usize, camera::CameraError> {
-        let start = wall_time();
-        let mut rlen = 0;
-        let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-        loop {
-            if rlen >= buf.len() {
-                break;
-            }
-            if start + Duration::from_millis(timeout_ms) < wall_time() {
-                break;
-            }
-            if let Some(v) = uart3.getchar() {
-                buf[rlen] = v;
-                rlen += 1;
-            }
+    fn read_bytes(
+        &mut self,
+        buf: &mut [u8],
+        timeout_ms: u64,
+    ) -> Result<usize, camera::CameraError> {
+        sleep(Duration::from_millis(3));
+        axhal::irq::set_enable(47, false);
+        let mut cache_buf = CAMERA_UART_BUF.lock();
+        let n = cache_buf.len().min(buf.len());
+        if n == 0 {
+            drop(cache_buf);
+            sleep(Duration::from_millis(1));
+            return Ok(0);
         }
-        println!("read len: {:#x}", rlen);
-        Ok(rlen)
-        // let start = wall_time();
-        // let mut rlen = 0;
-        // let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-        // loop {
-        //     if rlen >= buf.len() {
-        //         break;
-        //     }
-        //     if start + Duration::from_millis(timeout_ms) < wall_time() && rlen == 0 {
-        //         return Err(camera::CameraError::Timeout);
-        //     }
-        //     if let Some(v) = uart3.getchar() {
-        //         buf[rlen] = v;
-        //         rlen += 1;
-        //         continue;
-        //     } else if rlen > 0 {
-        //         break;
-        //     }
-        // }
-        // println!("read len: {:#x}", rlen);
-        // Ok(rlen)
+        cache_buf.drain(..n).enumerate().for_each(|(i, x)| buf[i] = x);
+        drop(cache_buf);
+        axhal::irq::set_enable(47, true);
+        Ok(n)
     }
 }
 
 #[unsafe(no_mangle)]
 fn main() {
     println!("Hello, world!");
+    usb_host::init_and_dump_topology();
+    dma_uart_tx::run_demo();
     let pinmux = Pinmux::new();
     // wifi::init();
 
     pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
     pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
 
-    let dmac = phys_to_virt(pa!(0x03002000));
-    unsafe {
-        dmac.as_mut_ptr().write_volatile(dmac.as_ptr().read_volatile() | 0x1);
-    }
     let mut uart0 = dw_apb_uart::DW8250::new(phys_to_virt(pa!(0x04140000)).as_usize());
     uart0.set_ier(true);
-    // axhal::irq::register(44, || println!("hello"));
-    // axhal::irq::set_enable(44, true);
+    // axhal::irq::register(44, || {
+    //     uart0.set_ier(true);
+    //     println!("hello")
+    // });
     // axhal::irq::set_enable(45, true);
     // axhal::irq::set_enable(45, true);
+    axhal::irq::register(47, || {
+        let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
+        let mut buf = CAMERA_UART_BUF.lock();
+        loop {
+            if let Some(c) = uart3.getchar() {
+                buf.push_back(c);
+                continue;
+            }
+            break;
+        }
+        uart3.set_ier(true);
+    });
     axhal::irq::set_enable(47, true);
 
     let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-    // uart3.init_with_baud(2500000);
-    uart3.init();
+    uart3.init_with_baud(1500000);
     uart3.set_ier(true);
-
-    loop {
-        unsafe {
-            // core::arch::asm!("wfi; nop;");
-            core::arch::asm!("nop");
-        }
-    }
-    // uart3.init_with_baud(1500000);
-    // uart3.init();
     println!("get cpr: {:#x}", uart3.cpr());
     println!("UART3 initialized");
     let mut cam = crate::camera::CameraProtocol::new_default(Uart3);
@@ -149,10 +134,15 @@ fn main() {
     pinmux.fmux().iic0_sda.write(FMUX_IIC0_SDA::FSEL::UART2_RX);
     pinmux.fmux().iic0_scl.write(FMUX_IIC0_SCL::FSEL::UART2_TX);
 
-
     // Set PWM PinMUX
-    pinmux.fmux().jtag_cpu_tms.write(FMUX_JTAG_CPU_TMS::FSEL::PWM_7);
-    pinmux.fmux().jtag_cpu_tck.write(FMUX_JTAG_CPU_TCK::FSEL::PWM_6);
+    pinmux
+        .fmux()
+        .jtag_cpu_tms
+        .write(FMUX_JTAG_CPU_TMS::FSEL::PWM_7);
+    pinmux
+        .fmux()
+        .jtag_cpu_tck
+        .write(FMUX_JTAG_CPU_TCK::FSEL::PWM_6);
     pinmux.fmux().uart0_tx.write(FMUX_UART0_TX::FSEL::PWM_4);
     pinmux.fmux().uart0_rx.write(FMUX_UART0_RX::FSEL::PWM_5);
 
@@ -175,12 +165,14 @@ fn main() {
             continue;
         }
         let channel = PwmChannel::from_u8(i).unwrap();
-        pwm_chip1.configure_channel_raw(
-            channel,
-            10000,
-            7000,
-            sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
-        ).unwrap();
+        pwm_chip1
+            .configure_channel_raw(
+                channel,
+                10000,
+                7000,
+                sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
+            )
+            .unwrap();
         //
         pwm_chip1.set_mode(channel, PwmMode::Continuous);
         // 使能 IO 输出
@@ -239,7 +231,6 @@ fn main() {
     pwm_chip1.stop(PwmChannel::Channel1);
     pwm_chip1.disable_output(PwmChannel::Channel3);
     pwm_chip1.stop(PwmChannel::Channel3);
-
 
     grab();
     crate::arm::delay_ms(5000);

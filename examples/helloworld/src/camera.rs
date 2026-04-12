@@ -306,7 +306,6 @@ impl<T: UartTransport> CameraProtocol<T> {
         if rsp.len() > 4 {
             data.extend_from_slice(&rsp[4..]);
         }
-
         while data.len() < frame_len {
             let pkt = self.recv_packet(Some(chunk_timeout_ms))?;
             if pkt.ptype != RESP_FRAME_CHUNK {

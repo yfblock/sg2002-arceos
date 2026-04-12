@@ -1,0 +1,16 @@
+[package]
+name = "usb-dwc2-host"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "no_std Synopsys DWC2 USB host (enumeration, Hub topology) for ArceOS"
+
+[lib]
+path = "src/lib.rs"
+
+# SG2002 / CV182x：`dwc2_set_cv182x_params` + Linux `dwc2_core_host_init` 所需 UTMI-16、FIFO、GDFIFOCFG 等。
+[features]
+default = []
+cv182x-host = []
+# 实验用：清 `GAHBCFG.DMA_EN`。CV181x/SG2002 的 DWC2 多为 **内部 DMA 架构**（GHWCFG2.ARCH=2），关闭后 EP0 通常会失败，仅用于对照实验。
+usb-force-no-dma = []

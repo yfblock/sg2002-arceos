@@ -26,6 +26,7 @@ members = [
     "ulib/axlibc",
 
     "examples/helloworld",
+    "modules/usb-dwc2-host",
     # "examples/helloworld-myplat",
     # "examples/httpclient",
     # "examples/httpserver",
