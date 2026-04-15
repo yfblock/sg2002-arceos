@@ -1,0 +1,39 @@
+# Project Specific Skills & Rules
+
+## 核心架构
+
+- 目标平台: RISC-V (SG2002)
+
+## 强制约束
+
+- 如果我要让你生成某些功能，你需要先运行然后调试，直到没有问题再停止
+
+## 编译方法
+
+```shell
+make MY_PLAT=axplat-riscv64-sg2002
+```
+
+## 调试技能
+
+- 在调试后需要关闭设备
+- 每次执行都需要是从关闭到打开的初始状态
+
+## 如何开启或关闭设备
+
+### 上传文件
+
+将 examples/helloworld/helloworld_sg2002.bin 移动到 /var/lib/tftpboot/arceos.bin, 然后开启设备后设备会启动自动通过 tftp 下载 arceos.bin 文件。然后可以通过 `/dev/ttyUSB0` 查看输出的信息。
+
+### 开启设备
+
+```shell
+sg2002-ctl 1
+```
+
+### 关闭设备
+
+```
+sg2002-ctl 0
+```
+

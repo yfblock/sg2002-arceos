@@ -78,7 +78,8 @@ fn va_to_phys<T>(p: *const T) -> u64 {
     virt_to_phys(VirtAddr::from(p as usize)).as_usize() as u64
 }
 
-fn enable_sdma_clock_gates() {
+/// 打开 SDMA / AXI 时钟门控，摄像头帧 DMA 拷贝前也需调用。
+pub fn enable_sdma_clock_gates() {
     let base = phys_to_virt(PhysAddr::from_usize(CLKGEN_BASE_PHYS)).as_usize();
     unsafe {
         let en2 = (base + REG_CLK_EN_2) as *mut u32;
@@ -101,7 +102,9 @@ fn wait_channel(dma: &DmaController, spins_max: usize) -> (usize, bool) {
 }
 
 /// RAM→RAM，验证 DMAC + master0 + 时钟 + 缓存一致性。成功则 `tst_dst` 全为 `0x5A`。
-unsafe fn run_ram_self_test() -> bool {
+///
+/// 供 `dma_camera` 等与摄像头相关的路径复用；调用方须保证单线程且 DMAC 未占用同一静态缓冲。
+pub unsafe fn run_ram_self_test() -> bool {
     let b = buf_mut();
     b.tst_src.fill(0x5a);
     b.tst_dst.fill(0);
@@ -223,15 +226,18 @@ fn build_uart_ctl() -> u64 {
     ctl
 }
 
+/// 使能时钟并完成 RAM 自检；摄像头 DMA 路径在抓帧前应调用一次。
+pub fn init_dma_subsystem() -> bool {
+    enable_sdma_clock_gates();
+    unsafe { run_ram_self_test() }
+}
+
 /// 分块 DMA 发送：每块 ≤ FIFO 深度，发完一块后等 UART TX Empty 再发下一块。
 pub fn run_demo() {
     const PAYLOAD: &[u8] = b"\r\n[dma_uart_tx] hello from DMA -> UART0 (8-bit THR)\r\n";
 
-    enable_sdma_clock_gates();
-
-    let ram_ok = unsafe { run_ram_self_test() };
-    if !ram_ok {
-        println!("[dma_uart_tx] RAM self-test failed (check clk / AXI master)");
+    if !init_dma_subsystem() {
+        println!("[dma_uart_tx] init_dma_subsystem failed");
         println!("[dma_uart_tx] run_demo finished");
         return;
     }

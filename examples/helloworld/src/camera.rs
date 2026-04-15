@@ -141,8 +141,8 @@ fn parse_packet(raw: &[u8]) -> Result<Packet, CameraError> {
     let ptype = raw[0];
     let seq = raw[1];
     let plen = u16::from_le_bytes([raw[2], raw[3]]) as usize;
-    println!("plen: {}, raw.len(): {}", plen, raw.len());
     if raw.len() != 4 + plen + 2 {
+        println!("[pkt_err] plen={} raw_len={} expected={}", plen, raw.len(), 4 + plen + 2);
         return Err(CameraError::PacketLengthMismatch);
     }
     let payload = raw[4..4 + plen].to_vec();
@@ -179,7 +179,7 @@ impl<T: UartTransport> CameraProtocol<T> {
     pub fn new(transport: T, timeout_ms: u64) -> Self {
         Self {
             transport,
-            rx_buf: Vec::new(),
+            rx_buf: Vec::with_capacity(0x10000),
             seq: 0,
             timeout_ms,
         }
@@ -220,7 +220,6 @@ impl<T: UartTransport> CameraProtocol<T> {
         timeout_ms: Option<u64>,
     ) -> Result<Vec<u8>, CameraError> {
         let seq = self.send_packet(cmd, payload)?;
-        println!("send command done");
         let pkt = self.recv_packet(timeout_ms)?;
         let expected_rsp = cmd | RESP_MASK;
         if pkt.ptype != expected_rsp || pkt.seq != seq {
@@ -235,12 +234,17 @@ impl<T: UartTransport> CameraProtocol<T> {
     // ─── SLIP 帧读取 ─────────────────────────────────────────────────────
 
     fn read_slip_frame(&mut self, timeout_ms: u64) -> Result<Vec<u8>, CameraError> {
-        let mut tmp = [0u8; 0x1200];
+        use core::cell::UnsafeCell;
+        struct Buf(UnsafeCell<[u8; 0x10000]>);
+        unsafe impl Sync for Buf {}
+        static READ_BUF: Buf = Buf(UnsafeCell::new([0u8; 0x10000]));
+
         loop {
             if let Some(frame) = self.try_extract_frame() {
                 return Ok(frame);
             }
-            let n = self.transport.read_bytes(&mut tmp, timeout_ms)?;
+            let tmp = unsafe { &mut *READ_BUF.0.get() };
+            let n = self.transport.read_bytes(tmp, timeout_ms)?;
             if n > 0 {
                 self.rx_buf.extend_from_slice(&tmp[..n]);
             }
@@ -293,6 +297,7 @@ impl<T: UartTransport> CameraProtocol<T> {
         &mut self,
         chunk_timeout_ms: u64,
     ) -> Result<Vec<u8>, CameraError> {
+        self.rx_buf.clear();
         let rsp = self.request(CMD_GET_CAMERA_FRAME, &[], None)?;
         if rsp.len() < 4 {
             return Err(CameraError::PacketTooShort);

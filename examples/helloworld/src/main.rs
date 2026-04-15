@@ -8,29 +8,29 @@ extern crate axstd;
 
 pub mod arm;
 pub mod camera;
-// pub mod gc4653;
+
+/// `arm` 等子模块通过 `use crate::pa` 使用 `pa!`。
+pub use axstd::os::arceos::modules::axhal::mem::pa;
+
 pub mod pwm_demo;
 pub mod ssd1306;
 pub mod sts3215;
 pub mod utils;
+mod dma_camera;
 mod dma_uart_tx;
+mod uart3_dma_rx;
 mod usb_host;
-// pub mod wifi;
 
-use crate::arm::arm_init;
-use crate::arm::release;
+use crate::arm::{arm_init, grab, release};
 use crate::camera::UartTransport;
 use crate::utils::hexdump;
-use core::iter::Iterator;
 use core::time::Duration;
 
-use arm::grab;
 use axhal::{
     asm::wait_for_irqs,
     mem::{PhysAddr, phys_to_virt},
 };
 use axstd::collections::vec_deque::VecDeque;
-use axstd::os::arceos::modules::axhal::mem::pa;
 use axstd::println;
 use axstd::sync::Mutex;
 use axstd::thread::sleep;
@@ -45,7 +45,6 @@ use tock_registers::interfaces::Writeable;
 
 static CAMERA_UART_BUF: Mutex<VecDeque<u8>> = Mutex::new(VecDeque::new());
 const UART3_ADDR: PhysAddr = PhysAddr::from_usize(0x04170000);
-const SLIP_END: u8 = 0xC0;
 
 struct Uart3;
 
@@ -59,7 +58,7 @@ impl UartTransport for Uart3 {
     fn read_bytes(
         &mut self,
         buf: &mut [u8],
-        timeout_ms: u64,
+        _timeout_ms: u64,
     ) -> Result<usize, camera::CameraError> {
         sleep(Duration::from_millis(3));
         axhal::irq::set_enable(47, false);
@@ -77,64 +76,21 @@ impl UartTransport for Uart3 {
     }
 }
 
-#[unsafe(no_mangle)]
-fn main() {
-    println!("Hello, world!");
+/// 原先 `main` 里的 USB 主机与 DMA→UART 演示，保留供参考，不参与启动路径。
+#[allow(dead_code)]
+fn unused_usb_host_and_dma_uart_demo() {
     usb_host::init_and_dump_topology();
     dma_uart_tx::run_demo();
+}
+
+/// 原先 `main` 里的机械臂、PWM、按键、SDMMC 等演示，保留供参考，不参与启动路径。
+#[allow(dead_code)]
+fn unused_arm_pwm_sdmmc_demo() {
     let pinmux = Pinmux::new();
-    // wifi::init();
 
-    pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
-    pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
-
-    let mut uart0 = dw_apb_uart::DW8250::new(phys_to_virt(pa!(0x04140000)).as_usize());
-    uart0.set_ier(true);
-    // axhal::irq::register(44, || {
-    //     uart0.set_ier(true);
-    //     println!("hello")
-    // });
-    // axhal::irq::set_enable(45, true);
-    // axhal::irq::set_enable(45, true);
-    axhal::irq::register(47, || {
-        let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-        let mut buf = CAMERA_UART_BUF.lock();
-        loop {
-            if let Some(c) = uart3.getchar() {
-                buf.push_back(c);
-                continue;
-            }
-            break;
-        }
-        uart3.set_ier(true);
-    });
-    axhal::irq::set_enable(47, true);
-
-    let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-    uart3.init_with_baud(1500000);
-    uart3.set_ier(true);
-    println!("get cpr: {:#x}", uart3.cpr());
-    println!("UART3 initialized");
-    let mut cam = crate::camera::CameraProtocol::new_default(Uart3);
-    println!("camera initialized");
-    cam.ping().unwrap();
-    println!("camera ping");
-    let info = cam.get_camera_info().unwrap();
-    println!("camera Info: {:#x?}", info);
-    let frame = cam.get_frame().unwrap();
-
-    println!("get Camera len: {:#x}", frame.len());
-    loop {
-        core::hint::spin_loop();
-        wait_for_irqs();
-    }
-
-    // gc4653::init();
-    // Set Uart 2 PINMUX
     pinmux.fmux().iic0_sda.write(FMUX_IIC0_SDA::FSEL::UART2_RX);
     pinmux.fmux().iic0_scl.write(FMUX_IIC0_SCL::FSEL::UART2_TX);
 
-    // Set PWM PinMUX
     pinmux
         .fmux()
         .jtag_cpu_tms
@@ -146,7 +102,6 @@ fn main() {
     pinmux.fmux().uart0_tx.write(FMUX_UART0_TX::FSEL::PWM_4);
     pinmux.fmux().uart0_rx.write(FMUX_UART0_RX::FSEL::PWM_5);
 
-    // Set Uart 3 PINMUX
     pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
     pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
 
@@ -173,57 +128,10 @@ fn main() {
                 sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
             )
             .unwrap();
-        //
         pwm_chip1.set_mode(channel, PwmMode::Continuous);
-        // 使能 IO 输出
         pwm_chip1.enable_output(channel);
-        // 启动 PWM 输出
         pwm_chip1.start(channel);
     }
-    // let channel = PwmChannel::Channel2;
-    // pwm_chip1.configure_channel_raw(
-    //     channel,
-    //     10000,
-    //     5000,
-    //     sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
-    // );
-    // //
-    // pwm_chip1.set_mode(channel, PwmMode::Continuous);
-    // // 使能 IO 输出
-    // pwm_chip1.enable_output(channel);
-    // // 启动 PWM 输出
-    // pwm_chip1.start(channel);
-
-    // let mut pwm_chip2 = sg200x_bsp::pwm::Pwm::new(PwmInstance::Pwm2);
-    // for i in 0..2 {
-    //     let channel = PwmChannel::from_u8(i).unwrap();
-    //     pwm_chip2.configure_channel_raw(
-    //         channel,
-    //         10000,
-    //         000,
-    //         sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
-    //     );
-    //     //
-    //     pwm_chip2.set_mode(channel, PwmMode::Continuous);
-    //     // 使能 IO 输出
-    //     pwm_chip2.enable_output(channel);
-    //     // 启动 PWM 输出
-    //     pwm_chip2.start(channel);
-    // }
-    // pwm_chip2.configure_channel_raw(
-    //     channel,
-    //     10000,
-    //     000,
-    //     sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
-    // );
-    // //
-    // pwm_chip2.set_mode(channel, PwmMode::Continuous);
-    // // 使能 IO 输出
-    // pwm_chip2.enable_output(channel);
-    // // 启动 PWM 输出
-    // pwm_chip2.start(channel);
-    // pwm_chip2.disable_output(PwmChannel::Channel0);
-    // pwm_chip2.stop(PwmChannel::Channel0);
 
     crate::arm::delay_ms(2000);
 
@@ -235,25 +143,60 @@ fn main() {
     grab();
     crate::arm::delay_ms(5000);
     release();
-    loop {
-        core::hint::spin_loop();
-        wait_for_irqs();
-    }
 
     let sdmmc = sg200x_bsp::sdmmc::init().unwrap();
     let mut buffer = [0; 512 * 6];
     sdmmc.clk_en(true);
     sdmmc.read_block(0, &mut buffer).unwrap();
-    // pwm7.configure_channel_raw(
-    //     sg200x_bsp::pwm::PwmChannel::Channel3,
-    //     1000,
-    //     400,
-    //     sg200x_bsp::pwm::PwmPolarity::ActiveHigh,
-    // );
-    // pwm7.restart(PwmChannel::Channel3);
-    // sdmmc.read_block_sdma(0, virt_to_phys(va!(buffer.as_ptr() as usize)).into(), (buffer.len() / 512) as _);
-    // sg200x_bsp::sdmmc::read_block(0, &mut buffer);
     hexdump(&buffer, 0x0);
-    // sg200x_bsp::sdmmc::read_block(1, &mut buffer);
-    // hexdump(&buffer, 0x200);
+}
+
+#[unsafe(no_mangle)]
+fn main() {
+    println!("Hello, world!");
+
+    let pinmux = Pinmux::new();
+    pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
+    pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
+
+    let mut uart0 = dw_apb_uart::DW8250::new(phys_to_virt(pa!(0x04140000)).as_usize());
+    uart0.set_ier(true);
+
+    axhal::irq::register(47, || {
+        let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
+        let mut buf = CAMERA_UART_BUF.lock();
+        loop {
+            if let Some(c) = uart3.getchar() {
+                buf.push_back(c);
+                continue;
+            }
+            break;
+        }
+        uart3.set_ier(true);
+    });
+    axhal::irq::set_enable(47, true);
+
+    let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
+    uart3.init_with_baud(1500000);
+    uart3.set_ier(true);
+    println!("get cpr: {:#x}", uart3.cpr());
+    println!("UART3 initialized");
+    let mut cam = crate::camera::CameraProtocol::new_default(Uart3);
+    println!("camera initialized");
+    cam.ping().unwrap();
+    println!("camera ping");
+    let info = cam.get_camera_info().unwrap();
+    println!("camera Info: {:#x?}", info);
+    let t0 = axstd::time::Instant::now();
+    let frame = cam.get_frame().unwrap();
+    let elapsed = t0.elapsed();
+
+    println!(
+        "get Camera len: {:#x} ({} bytes), time: {} ms",
+        frame.len(), frame.len(), elapsed.as_millis()
+    );
+    loop {
+        core::hint::spin_loop();
+        wait_for_irqs();
+    }
 }
