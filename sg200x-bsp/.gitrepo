@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:yfblock/sg200x-bsp
+	branch = main
+	commit = d0e6103c32e134b2146ce3825cf2c41c91d22343
+	parent = 7f3c630c13428fb12413d66f17743fb7d71962a4
+	method = merge
+	cmdver = 0.4.9
