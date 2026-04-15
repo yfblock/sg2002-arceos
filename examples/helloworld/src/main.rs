@@ -24,7 +24,6 @@ mod usb_host;
 use crate::arm::{arm_init, grab, release};
 use crate::camera::UartTransport;
 use crate::utils::hexdump;
-use core::time::Duration;
 
 use axhal::{
     asm::wait_for_irqs,
@@ -33,7 +32,6 @@ use axhal::{
 use axstd::collections::vec_deque::VecDeque;
 use axstd::println;
 use axstd::sync::Mutex;
-use axstd::thread::sleep;
 use sg200x_bsp::{
     pinmux::{
         FMUX_IIC0_SCL, FMUX_IIC0_SDA, FMUX_JTAG_CPU_TCK, FMUX_JTAG_CPU_TMS, FMUX_SD1_D1,
@@ -60,13 +58,13 @@ impl UartTransport for Uart3 {
         buf: &mut [u8],
         _timeout_ms: u64,
     ) -> Result<usize, camera::CameraError> {
-        sleep(Duration::from_millis(3));
         axhal::irq::set_enable(47, false);
         let mut cache_buf = CAMERA_UART_BUF.lock();
         let n = cache_buf.len().min(buf.len());
         if n == 0 {
             drop(cache_buf);
-            sleep(Duration::from_millis(1));
+            axhal::irq::set_enable(47, true);
+            wait_for_irqs();
             return Ok(0);
         }
         cache_buf.drain(..n).enumerate().for_each(|(i, x)| buf[i] = x);
