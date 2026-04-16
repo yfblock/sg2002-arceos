@@ -73,5 +73,5 @@ pub mod time;
 
 #[cfg(feature = "fs")]
 pub mod fs;
-#[cfg(feature = "net")]
+#[cfg(any(feature = "net", feature = "net-cvitek"))]
 pub mod net;

@@ -71,6 +71,7 @@ axipi = { path = "modules/axipi" }
 
 [patch.crates-io]
 dw_apb_uart = { path = "dw_apb_uart" }
+page_table_entry = { path = "crates/page_table_entry" }
 
 [profile.release]
 lto = true

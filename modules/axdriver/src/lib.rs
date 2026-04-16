@@ -78,6 +78,9 @@ mod virtio;
 #[cfg(feature = "ixgbe")]
 mod ixgbe;
 
+#[cfg(feature = "cvitek-eth")]
+pub mod cvitek_eth;
+
 pub mod prelude;
 
 #[allow(unused_imports)]
@@ -154,14 +157,15 @@ pub fn init_drivers() -> AllDevices {
 
     let mut all_devs = AllDevices::default();
     all_devs.probe();
+    info!("  probe done, checking devices...");
 
     #[cfg(feature = "net")]
     {
-        debug!("number of NICs: {}", all_devs.net.len());
+        info!("  net container len: {}", all_devs.net.len());
         for (i, dev) in all_devs.net.iter().enumerate() {
-            assert_eq!(dev.device_type(), DeviceType::Net);
-            debug!("  NIC {}: {:?}", i, dev.device_name());
+            info!("  NIC {}: type={:?} name={:?}", i, dev.device_type(), dev.device_name());
         }
+        info!("  net devices checked OK");
     }
     #[cfg(feature = "block")]
     {

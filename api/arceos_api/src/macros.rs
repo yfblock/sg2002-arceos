@@ -98,7 +98,12 @@ macro_rules! cfg_fs {
 }
 
 macro_rules! cfg_net {
-    ($($item:item)*) => { _cfg_common!{ "net" $($item)* } }
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(feature = "net", feature = "net-cvitek"))]
+            $item
+        )*
+    }
 }
 
 macro_rules! cfg_display {

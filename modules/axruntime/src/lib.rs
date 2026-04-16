@@ -168,7 +168,11 @@ pub fn rust_main(cpu_id: usize, arg: usize) -> ! {
         axfs::init_filesystems(all_devices.block);
 
         #[cfg(feature = "net")]
-        axnet::init_network(all_devices.net);
+        {
+            info!("  before axnet::init_network...");
+            axnet::init_network(all_devices.net);
+            info!("  axnet::init_network done");
+        }
 
         #[cfg(feature = "display")]
         axdisplay::init_display(all_devices.display);

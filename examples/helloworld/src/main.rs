@@ -152,49 +152,60 @@ fn unused_arm_pwm_sdmmc_demo() {
 #[unsafe(no_mangle)]
 fn main() {
     println!("Hello, world!");
+    println!("Starting HTTP server...");
+    http_server::run();
+}
 
-    let pinmux = Pinmux::new();
-    pinmux.fmux().sd1_d2.write(FMUX_SD1_D2::FSEL::UART3_TX);
-    pinmux.fmux().sd1_d1.write(FMUX_SD1_D1::FSEL::UART3_RX);
+mod http_server {
+    use axstd::io::{self, prelude::*};
+    use axstd::net::{TcpListener, TcpStream};
+    use axstd::println;
 
-    let mut uart0 = dw_apb_uart::DW8250::new(phys_to_virt(pa!(0x04140000)).as_usize());
-    uart0.set_ier(true);
+    const LOCAL_PORT: u16 = 80;
 
-    axhal::irq::register(47, || {
-        let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-        let mut buf = CAMERA_UART_BUF.lock();
+    const RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\n\
+Content-Type: text/html\r\n\
+Content-Length: 569\r\n\
+Connection: close\r\n\r\n\
+<html>\
+<head><title>Hello, SG2002 ArceOS</title>\
+<style>\
+body{font-family:sans-serif;background:#f0f4f8;margin:0}\
+.c{max-width:600px;margin:80px auto;text-align:center}\
+h1{color:#333}\
+.info{background:#fff;border-radius:8px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.1)}\
+code{background:#eee;padding:2px 6px;border-radius:4px}\
+</style></head>\
+<body><div class=\"c\">\
+<h1>Hello from SG2002!</h1>\
+<div class=\"info\">\
+<p>This page is served by <b>ArceOS</b> running on the <b>SG2002</b> RISC-V SoC.</p>\
+<p>NIC driver: <code>cvitek-eth (DWMAC 3.70a)</code></p>\
+</div></div></body></html>";
+
+    fn handle(mut stream: TcpStream) -> io::Result<()> {
+        let mut buf = [0u8; 1024];
+        let _ = stream.read(&mut buf)?;
+        stream.write_all(RESPONSE)?;
+        Ok(())
+    }
+
+    pub fn run() {
+        let listener = TcpListener::bind(("0.0.0.0", LOCAL_PORT)).expect("bind");
+        println!("HTTP server listening on http://0.0.0.0:{}/", LOCAL_PORT);
         loop {
-            if let Some(c) = uart3.getchar() {
-                buf.push_back(c);
-                continue;
+            match listener.accept() {
+                Ok((stream, addr)) => {
+                    println!("  client: {}", addr);
+                    if let Err(e) = handle(stream) {
+                        println!("  error: {:?}", e);
+                    }
+                }
+                Err(e) => {
+                    println!("accept error: {:?}", e);
+                    break;
+                }
             }
-            break;
         }
-        uart3.set_ier(true);
-    });
-    axhal::irq::set_enable(47, true);
-
-    let mut uart3 = dw_apb_uart::DW8250::new(phys_to_virt(UART3_ADDR).as_usize());
-    uart3.init_with_baud(1500000);
-    uart3.set_ier(true);
-    println!("get cpr: {:#x}", uart3.cpr());
-    println!("UART3 initialized");
-    let mut cam = crate::camera::CameraProtocol::new_default(Uart3);
-    println!("camera initialized");
-    cam.ping().unwrap();
-    println!("camera ping");
-    let info = cam.get_camera_info().unwrap();
-    println!("camera Info: {:#x?}", info);
-    let t0 = axstd::time::Instant::now();
-    let frame = cam.get_frame().unwrap();
-    let elapsed = t0.elapsed();
-
-    println!(
-        "get Camera len: {:#x} ({} bytes), time: {} ms",
-        frame.len(), frame.len(), elapsed.as_millis()
-    );
-    loop {
-        core::hint::spin_loop();
-        wait_for_irqs();
     }
 }

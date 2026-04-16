@@ -206,6 +206,7 @@ impl Device for DeviceWrapper {
         }
 
         if !dev.can_transmit() {
+            log::warn!("can_transmit=false");
             return None;
         }
         let rx_buf = match dev.receive() {

@@ -130,6 +130,22 @@ cfg_if::cfg_if! {
 }
 
 cfg_if::cfg_if! {
+    if #[cfg(net_dev = "cvitek-eth")] {
+        pub struct CvitekEthDriver;
+        register_net_driver!(CvitekEthDriver, crate::cvitek_eth::CvitekEthNic);
+
+        impl DriverProbe for CvitekEthDriver {
+            fn probe_global() -> Option<AxDeviceEnum> {
+                info!("cvitek-eth probe global");
+                crate::cvitek_eth::CvitekEthNic::init(0x0407_0000)
+                    .ok()
+                    .map(AxDeviceEnum::from_net)
+            }
+        }
+    }
+}
+
+cfg_if::cfg_if! {
     if #[cfg(net_dev = "fxmac")]{
         use axalloc::global_allocator;
         use axhal::mem::PAGE_SIZE_4K;

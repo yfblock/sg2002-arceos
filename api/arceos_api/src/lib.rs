@@ -11,6 +11,7 @@
     feature = "alloc",
     feature = "fs",
     feature = "net",
+    feature = "net-cvitek",
     feature = "multitask",
     feature = "dummy-if-not-enabled"
 ))]
@@ -267,18 +268,17 @@ pub mod fs {
 }
 
 /// Networking primitives for TCP/UDP communication.
+#[cfg(any(feature = "net", feature = "net-cvitek"))]
 pub mod net {
     use crate::{AxResult, io::AxPollState};
     use core::net::{IpAddr, SocketAddr};
 
     define_api_type! {
-        @cfg "net";
         pub type AxTcpSocketHandle;
         pub type AxUdpSocketHandle;
     }
 
     define_api! {
-        @cfg "net";
 
         // TCP socket
 
@@ -401,7 +401,7 @@ pub mod modules {
     pub use axdisplay;
     #[cfg(feature = "dma")]
     pub use axdma;
-    #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
+    #[cfg(any(feature = "fs", feature = "net", feature = "net-cvitek", feature = "display"))]
     pub use axdriver;
     #[cfg(feature = "fs")]
     pub use axfs;
@@ -409,7 +409,7 @@ pub mod modules {
     pub use axipi;
     #[cfg(feature = "paging")]
     pub use axmm;
-    #[cfg(feature = "net")]
+    #[cfg(any(feature = "net", feature = "net-cvitek"))]
     pub use axnet;
     #[cfg(feature = "multitask")]
     pub use axtask;

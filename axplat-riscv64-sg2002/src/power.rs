@@ -41,7 +41,9 @@ impl PowerIf for PowerImpl {
     }
 
     /// Get the number of CPU cores available on this platform.
+    /// SG2002 has Hart 0 (small core) and Hart 1 (C906 big core).
+    /// Only the big core (Hart 1) is usable, so we report 1 CPU.
     fn cpu_num() -> usize {
-        crate::config::plat::MAX_CPU_NUM
+        1
     }
 }

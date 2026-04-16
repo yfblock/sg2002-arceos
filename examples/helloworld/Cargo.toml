@@ -7,9 +7,9 @@ authors = ["Yuekai Jia <equation618@gmail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axstd = { workspace = true, features = ["alloc", "irq", "myplat"] }
+axstd = { workspace = true, features = ["alloc", "irq", "myplat", "net-cvitek", "multitask", "bus-mmio"] }
 axplat-riscv64-sg2002 = { path = "../../axplat-riscv64-sg2002/", features = ["smp", "irq"] }
-sg200x-bsp = { path = "../../../sg200x-bsp/" }
+sg200x-bsp = { path = "../../sg200x-bsp/" }
 dw_apb_uart = "0.1.0"
 # sg2002-wifi-driver = { path = "../../../sg2002-wifi-driver/driver/" }
 tock-registers = "0.9"

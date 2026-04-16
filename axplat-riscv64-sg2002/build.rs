@@ -3,4 +3,5 @@ fn main() {
     if let Ok(config_path) = std::env::var("AX_CONFIG_PATH") {
         println!("cargo:rerun-if-changed={config_path}");
     }
+    println!("cargo:rerun-if-changed=axconfig.toml");
 }
